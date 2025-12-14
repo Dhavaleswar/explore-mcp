@@ -1,13 +1,14 @@
 import asyncio
 import os
 import json
-from fastmcp import Client
+
 
 if "OPENAI_API_KEY" not in os.environ:
     from utils.helpers import get_api_key
     os.environ["OPENAI_API_KEY"] = get_api_key()
-
+from fastmcp import Client
 from openai import AsyncOpenAI
+
 
 # --- 1. Client Setup ---
 LLM_PROVIDER_CLIENT = AsyncOpenAI()  # Or use Anthropic, Gemini, local Ollama client, etc.
@@ -35,6 +36,7 @@ async def orchestrate_llm_agent(user_prompt: str):
         messages = [{"role": "user", "content": user_prompt}]
 
         # --- 3. Orchestration Loop ---
+        loop_count = 0
         while True:
             # 1. Send query and tools to the LLM
             response = await LLM_PROVIDER_CLIENT.chat.completions.create(
@@ -47,6 +49,8 @@ async def orchestrate_llm_agent(user_prompt: str):
 
             if not tool_calls:
                 # LLM decided it has the final answer (or cannot use tools)
+                if loop_count == 0:
+                    print(f"No tools found for the prompt: ------- {user_prompt}")
                 return response.choices[0].message.content
 
             # 2. LLM requests a tool call: Execute the tool using the FastMCP client
@@ -65,12 +69,19 @@ async def orchestrate_llm_agent(user_prompt: str):
                 tool_output = mcp_result.data
 
                 # 3. Send the tool result back to the LLM
-                messages.append({
+                new_tool_msg  = {
                     "role": "tool",
                     "tool_call_id": call.id,
                     "name": tool_name,
                     "content": str(tool_output),  # Send the output as a string for the LLM to read
-                })
+                }
+                messages.append(new_tool_msg)
 
-# Example run
-print(asyncio.run(orchestrate_llm_agent("Add two numbers 23 and 45")))
+            loop_count += 1
+
+if __name__ == '__main__':
+    # Example run
+    print(asyncio.run(orchestrate_llm_agent("Add two numbers 23 and 45")))
+    print(asyncio.run(orchestrate_llm_agent("subtract two numbers 23 and 45")))
+    print(asyncio.run(orchestrate_llm_agent("Divide number 23 with number 45")))
+    print(asyncio.run(orchestrate_llm_agent("Who is the CM of Karnataka, India?")))
