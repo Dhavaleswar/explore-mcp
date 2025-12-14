@@ -69,7 +69,7 @@ Expected output: A tools list including `ping`, `add`, and `subtract`.
 With the server running and your OpenAI key available, run the LLM orchestration demo:
 
 ```bash
-python call_my_mcp2.py
+python mcp_llm_mode2.py
 ```
 
 What it does:
