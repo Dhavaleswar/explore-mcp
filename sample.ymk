@@ -1,0 +1,53 @@
+version: '3.7'
+services:
+  redpanda-1:
+    image: docker.redpanda.com/redpandadata/redpanda:v23.3.5
+    command:
+      - redpanda start
+      - --kafka-addr PLAINTEXT://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092
+      - --advertise-kafka-addr PLAINTEXT://redpanda-1:29092,OUTSIDE://localhost:9092
+      - --node-id 1
+    ports:
+      - 9092:9092
+
+  redpanda-2:
+    image: docker.redpanda.com/redpandadata/redpanda:v23.3.5
+    command:
+      - redpanda start
+      - --kafka-addr PLAINTEXT://0.0.0.0:29093,OUTSIDE://0.0.0.0:9093
+      - --advertise-kafka-addr PLAINTEXT://redpanda-2:29093,OUTSIDE://localhost:9093
+      - --node-id 2
+      - --seeds redpanda-1:29092
+    ports:
+      - 9093:9093
+    depends_on:
+      - redpanda-1
+
+  redpanda-3:
+    image: docker.redpanda.com/redpandadata/redpanda:v23.3.5
+    command:
+      - redpanda start
+      - --kafka-addr PLAINTEXT://0.0.0.0:29094,OUTSIDE://0.0.0.0:9094
+      - --advertise-kafka-addr PLAINTEXT://redpanda-3:29094,OUTSIDE://localhost:9094
+      - --node-id 3
+      - --seeds redpanda-1:29092
+    ports:
+      - 9094:9094
+    depends_on:
+      - redpanda-1
+
+  console:
+    image: docker.redpanda.com/redpandadata/console:v2.4.3
+    entrypoint: /bin/sh
+    command: -c "echo \"$$CONSOLE_CONFIG_FILE\" > /tmp/config.yml; /app/console"
+    environment:
+      CONFIG_FILEPATH: /tmp/config.yml
+      CONSOLE_CONFIG_FILE: |
+        kafka:
+          brokers: ["redpanda-1:29092", "redpanda-2:29093", "redpanda-3:29094"]
+    ports:
+      - 8080:8080
+    depends_on:
+      - redpanda-1
+      - redpanda-2
+      - redpanda-3
